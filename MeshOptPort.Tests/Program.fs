@@ -629,8 +629,14 @@ let testIndexSequenceCodec (indices: uint32[]) (vertexCount: int) =
 
 [<EntryPoint>]
 let main argv =
+    if argv |> Array.exists (fun a -> a = "--bench") then
+        Benchmark.runBenchmarks ()
+        0
+    else
+
     let objPath =
-        if argv.Length > 0 then argv.[0]
+        let nonFlags = argv |> Array.filter (fun a -> not (a.StartsWith("--")))
+        if nonFlags.Length > 0 then nonFlags.[0]
         else "/tmp/meshoptimizer/demo/pirate.obj"
 
     printfn "Loading %s..." objPath
