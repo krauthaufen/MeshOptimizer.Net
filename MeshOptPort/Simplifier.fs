@@ -1310,10 +1310,9 @@ let private performEdgeCollapses (collapse_remap: nativeptr<uint32>) (collapse_l
                 let kind = NPtr.get vertex_kind (int i0)
 
                 if NPtr.get collapse_locked (int r0) ||| NPtr.get collapse_locked (int r1) <> 0uy then
-                    i <- i + 1 // continue
+                    () // continue
                 elif hasTriangleFlipsCollapse &adjacency vertex_positions collapse_remap r0 r1 then
                     edge_collapse_goal <- edge_collapse_goal + 1
-                    i <- i + 1 // continue
                 else
                     assert (NPtr.get collapse_remap (int r0) = r0)
                     assert (NPtr.get collapse_remap (int r1) = r1)
@@ -1345,7 +1344,6 @@ let private performEdgeCollapses (collapse_remap: nativeptr<uint32>) (collapse_l
                     edge_collapses <- edge_collapses + 1
 
                     if result_error < getError c then result_error <- getError c
-                    i <- i + 1
 
         if not breakLoop then
             i <- i + 1

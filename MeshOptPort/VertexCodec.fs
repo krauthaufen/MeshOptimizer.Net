@@ -64,7 +64,7 @@ let private encodeBytesGroupMeasure (buffer: nativeptr<byte>) (bits: int) : int 
     assert (bits >= 0 && bits <= 8)
 
     if bits = 0 then
-        if encodeBytesGroupZero buffer then 0 else -1 // size_t(-1) -> -1 sentinel
+        if encodeBytesGroupZero buffer then 0 else System.Int32.MaxValue // size_t(-1) in C++
     elif bits = 8 then
         kByteGroupSize
     else
