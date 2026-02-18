@@ -4,10 +4,12 @@ F# port of [meshoptimizer](https://github.com/zeux/meshoptimizer), a C/C++ libra
 
 Line-by-line translation of all 17 source files — 19 F# files, ~11,600 lines. Uses `nativeptr<T>` for pointers, `System.Runtime.Intrinsics` for SIMD (SSE4.1/NEON with scalar fallback), and mirrors the C code structure closely. No external dependencies.
 
+**Based on meshoptimizer [`d033a68`](https://github.com/zeux/meshoptimizer/commit/d033a68) (v1.0.1+109, 2025).** To sync with a newer version, diff the C++ sources against this commit and apply corresponding changes to the F# files (see [file mapping](#file-mapping) below).
+
 ## Status
 
 - All 49 correctness tests pass (byte-exact match against C++ `libmeshoptimizer.so`)
-- Performance within 1–2x of C++ for most algorithms, 3–5x for codec functions (C++ uses hand-tuned SIMD)
+- Performance within 1.1–2.5x of C++ across all functions (BenchmarkDotNet, Ryzen 7 7700X)
 - See [BENCHMARK.md](BENCHMARK.md) for detailed numbers
 
 ## Building
