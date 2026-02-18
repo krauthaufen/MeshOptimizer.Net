@@ -10,8 +10,10 @@ dotnet build -c Release
 # Correctness (needs C++ shared lib)
 LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests
 
-# Benchmark
+# Benchmark (BenchmarkDotNet)
 LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench
+# Single function: --bench --filter *VertexCache*
+# Hardware counters: --bench --counters
 ```
 
 ## Architecture

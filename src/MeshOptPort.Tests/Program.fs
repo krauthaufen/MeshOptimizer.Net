@@ -3,8 +3,10 @@
 module MeshOptPort.Tests.Program
 
 open System
+open System.Reflection
 open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
+open BenchmarkDotNet.Running
 open MeshOptPort
 open MeshOptPort.Tests.ObjLoader
 
@@ -630,7 +632,16 @@ let testIndexSequenceCodec (indices: uint32[]) (vertexCount: int) =
 [<EntryPoint>]
 let main argv =
     if argv |> Array.exists (fun a -> a = "--bench") then
-        Benchmark.runBenchmarks ()
+        let useCounters = argv |> Array.exists (fun a -> a = "--counters")
+        // Pass remaining args to BDN (strip --bench and --counters)
+        let bdnArgs =
+            argv
+            |> Array.filter (fun a -> a <> "--bench" && a <> "--counters")
+        let asm = Assembly.GetExecutingAssembly()
+        if useCounters then
+            BenchmarkSwitcher.FromAssembly(asm).Run(bdnArgs, Benchmark.PerfConfig()) |> ignore
+        else
+            BenchmarkSwitcher.FromAssembly(asm).Run(bdnArgs) |> ignore
         0
     else
 

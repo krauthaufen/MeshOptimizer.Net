@@ -1,10 +1,15 @@
 // Performance benchmark: F# port vs C++ reference (via P/Invoke)
+// Uses BenchmarkDotNet for statistically rigorous measurements
 // Run with: LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project MeshOptPort.Tests -- --bench
 module MeshOptPort.Tests.Benchmark
 
 open System
-open System.Diagnostics
 open System.Runtime.InteropServices
+open BenchmarkDotNet.Attributes
+open BenchmarkDotNet.Columns
+open BenchmarkDotNet.Configs
+open BenchmarkDotNet.Diagnosers
+open BenchmarkDotNet.Jobs
 open MeshOptPort
 open MeshOptPort.Tests.ObjLoader
 
@@ -48,259 +53,390 @@ let generateGrid (n: int) : ObjMesh =
 
     { Vertices = vertices; Indices = indices }
 
-// ---- Timing ----
+// ---- Shared setup state ----
 
-let private median (values: float[]) =
-    let sorted = Array.sort (Array.copy values)
-    sorted.[sorted.Length / 2]
+type BenchState = {
+    Mesh: ObjMesh
+    IC: int
+    VC: int
+    VS: int
+    CacheOptIndices: uint32[]
+    IdxEncBuf: byte[]
+    IdxEncSize: int
+    VtxEncBuf: byte[]
+    VtxEncSize: int
+}
 
-let private timeRuns (runs: int) (action: unit -> unit) : float =
-    action() // warmup
-    GC.Collect(2, GCCollectionMode.Forced, true)
-    GC.WaitForPendingFinalizers()
-
-    let times = Array.init runs (fun _ ->
-        let sw = Stopwatch.StartNew()
-        action()
-        sw.Elapsed.TotalMilliseconds)
-
-    median times
-
-// ---- Benchmark runner ----
-
-let runBenchmarks () =
-    printfn "=== Performance Benchmark: F# Port vs C++ Reference ===\n"
-
+let createBenchState (gridSize: int) =
     Native.meshopt_encodeIndexVersion(1)
     MeshOptPort.IndexCodec.meshopt_encodeIndexVersion(1)
     Native.meshopt_encodeVertexVersion(0)
     MeshOptPort.VertexCodec.meshopt_encodeVertexVersion(0)
 
-    let sizes = [| "Small (1K tri)", 32, 50
-                   "Medium (100K tri)", 224, 10
-                   "Large (2M tri)", 1024, 3 |]
+    let mesh = generateGrid gridSize
+    let ic = mesh.Indices.Length
+    let vc = mesh.Vertices.Length
+    let vs = vertexSize
 
-    for (label, gridSize, runs) in sizes do
-        let mesh = generateGrid gridSize
-        let vc = mesh.Vertices.Length
-        let ic = mesh.Indices.Length
-        let vs = vertexSize
+    let cacheOpt = Array.zeroCreate<uint32> ic
+    pinArray mesh.Indices (fun src ->
+        pinArray cacheOpt (fun d ->
+            Native.meshopt_optimizeVertexCache(d, src, unativeint ic, unativeint vc)))
 
-        printfn "=== %s: %d verts, %d tris, %d indices ===" label vc (ic / 3) ic
-        printfn "%-30s | %10s | %10s | %s" "Function" "C++ (ms)" "F# (ms)" "Ratio"
-        printfn "%s+%s+%s+%s" (String('-', 31)) (String('-', 12)) (String('-', 12)) (String('-', 7))
+    let idxBound = MeshOptPort.IndexCodec.meshopt_encodeIndexBufferBound ic vc
+    let idxBuf = Array.zeroCreate<byte> idxBound
+    let idxSize =
+        pinArray mesh.Indices (fun ip ->
+            pinArray idxBuf (fun bp ->
+                int (Native.meshopt_encodeIndexBuffer(bp, unativeint idxBound, ip, unativeint ic))))
 
-        let bench name (cppAction: unit -> unit) (fsAction: unit -> unit) =
-            let cppMs = timeRuns runs cppAction
-            let fsMs = timeRuns runs fsAction
-            let ratio = if cppMs > 0.001 then fsMs / cppMs else 0.0
-            printfn "%-30s | %10.2f | %10.2f | %5.1fx" name cppMs fsMs ratio
-            GC.Collect(2, GCCollectionMode.Forced, true)
-            GC.WaitForPendingFinalizers()
+    let vtxBound = MeshOptPort.VertexCodec.meshopt_encodeVertexBufferBound vc vs
+    let vtxBuf = Array.zeroCreate<byte> vtxBound
+    let vtxSize =
+        pinArray mesh.Vertices (fun vp ->
+            pinArray vtxBuf (fun bp ->
+                int (Native.meshopt_encodeVertexBuffer(bp, unativeint vtxBound, vp, unativeint vc, unativeint vs))))
 
-        // 1. optimizeVertexCache
-        let cacheOptResult = Array.zeroCreate<uint32> ic
+    { Mesh = mesh; IC = ic; VC = vc; VS = vs
+      CacheOptIndices = cacheOpt
+      IdxEncBuf = idxBuf; IdxEncSize = idxSize
+      VtxEncBuf = vtxBuf; VtxEncSize = vtxSize }
 
-        bench "optimizeVertexCache"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray mesh.Indices (fun src ->
-                    pinArray dst (fun d ->
-                        Native.meshopt_optimizeVertexCache(d, src, unativeint ic, unativeint vc))))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray mesh.Indices (fun src ->
-                    pinArray dst (fun d ->
-                        MeshOptPort.VCacheOptimizer.meshopt_optimizeVertexCache
-                            (NPtr.ofNI d) (NPtr.ofNI src) ic vc)))
+// ---- Benchmark classes ----
 
-        // Produce cache-optimized indices for overdraw benchmark
-        pinArray mesh.Indices (fun src ->
-            pinArray cacheOptResult (fun d ->
-                Native.meshopt_optimizeVertexCache(d, src, unativeint ic, unativeint vc)))
+[<MemoryDiagnoser>]
+type VertexCacheBenchmark() =
 
-        // 2. optimizeOverdraw
-        bench "optimizeOverdraw"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray cacheOptResult (fun src ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray dst (fun d ->
-                            Native.meshopt_optimizeOverdraw(d, src, unativeint ic, vp, unativeint vc, unativeint vs, 1.05f)))))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray cacheOptResult (fun src ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray dst (fun d ->
-                            MeshOptPort.OverdrawOptimizer.meshopt_optimizeOverdraw
-                                (NPtr.ofNI d) (NPtr.ofNI src) ic (NPtr.ofNI<float32> vp) vc vs 1.05f))))
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
 
-        // 3. optimizeVertexFetch
-        bench "optimizeVertexFetch"
-            (fun () ->
-                let idxCopy = Array.copy mesh.Indices
-                let dstV = Array.zeroCreate<Vertex> vc
-                pinArray idxCopy (fun ip ->
-                    pinArray dstV (fun dp ->
-                        pinArray mesh.Vertices (fun sp ->
-                            Native.meshopt_optimizeVertexFetch(dp, ip, unativeint ic, sp, unativeint vc, unativeint vs) |> ignore))))
-            (fun () ->
-                let idxCopy = Array.copy mesh.Indices
-                let dstV = Array.zeroCreate<Vertex> vc
-                pinArray idxCopy (fun ip ->
-                    pinArray dstV (fun dp ->
-                        pinArray mesh.Vertices (fun sp ->
-                            MeshOptPort.VFetchOptimizer.meshopt_optimizeVertexFetch
-                                dp (NPtr.ofNI ip) ic sp vc vs |> ignore))))
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
 
-        // 4. simplify (50% target)
-        let targetCount = ic / 2
-        bench "simplify"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                let err = Array.zeroCreate<float32> 1
-                pinArray mesh.Indices (fun ip ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray dst (fun dp ->
-                            pinArray err (fun ep ->
-                                Native.meshopt_simplify(dp, ip, unativeint ic, vp, unativeint vc, unativeint vs, unativeint targetCount, 0.01f, 0u, ep) |> ignore)))))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                let err = Array.zeroCreate<float32> 1
-                pinArray mesh.Indices (fun ip ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray dst (fun dp ->
-                            pinArray err (fun ep ->
-                                MeshOptPort.Simplifier.meshopt_simplify
-                                    (NPtr.ofNI dp) (NPtr.ofNI ip) ic (NPtr.ofNI<float32> vp) vc vs targetCount 0.01f 0u (NPtr.ofNI ep) |> ignore)))))
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.Mesh.Indices (fun src ->
+            pinArray dst (fun d ->
+                Native.meshopt_optimizeVertexCache(d, src, unativeint this.S.IC, unativeint this.S.VC)))
 
-        // 5. encodeIndexBuffer
-        let idxBound = MeshOptPort.IndexCodec.meshopt_encodeIndexBufferBound ic vc
-        bench "encodeIndexBuffer"
-            (fun () ->
-                let buf = Array.zeroCreate<byte> idxBound
-                pinArray mesh.Indices (fun ip ->
-                    pinArray buf (fun bp ->
-                        Native.meshopt_encodeIndexBuffer(bp, unativeint idxBound, ip, unativeint ic) |> ignore)))
-            (fun () ->
-                let buf = Array.zeroCreate<byte> idxBound
-                pinArray mesh.Indices (fun ip ->
-                    pinArray buf (fun bp ->
-                        MeshOptPort.IndexCodec.meshopt_encodeIndexBuffer
-                            (NPtr.ofNI bp) idxBound (NPtr.ofNI ip) ic |> ignore)))
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.Mesh.Indices (fun src ->
+            pinArray dst (fun d ->
+                MeshOptPort.VCacheOptimizer.meshopt_optimizeVertexCache
+                    (NPtr.ofNI d) (NPtr.ofNI src) this.S.IC this.S.VC))
 
-        // 6. decodeIndexBuffer (encode first, then time decode only)
-        let idxEncBuf = Array.zeroCreate<byte> idxBound
-        let idxEncSize =
-            pinArray mesh.Indices (fun ip ->
-                pinArray idxEncBuf (fun bp ->
-                    int (Native.meshopt_encodeIndexBuffer(bp, unativeint idxBound, ip, unativeint ic))))
 
-        bench "decodeIndexBuffer"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray idxEncBuf (fun bp ->
-                    pinArray dst (fun dp ->
-                        Native.meshopt_decodeIndexBuffer(dp, unativeint ic, unativeint 4, bp, unativeint idxEncSize) |> ignore)))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> ic
-                pinArray idxEncBuf (fun bp ->
-                    pinArray dst (fun dp ->
-                        MeshOptPort.IndexCodec.meshopt_decodeIndexBuffer
-                            dp ic 4 (NPtr.ofNI bp) idxEncSize |> ignore)))
+[<MemoryDiagnoser>]
+type OverdrawBenchmark() =
 
-        // 7. encodeVertexBuffer
-        let vtxBound = MeshOptPort.VertexCodec.meshopt_encodeVertexBufferBound vc vs
-        bench "encodeVertexBuffer"
-            (fun () ->
-                let buf = Array.zeroCreate<byte> vtxBound
-                pinArray mesh.Vertices (fun vp ->
-                    pinArray buf (fun bp ->
-                        Native.meshopt_encodeVertexBuffer(bp, unativeint vtxBound, vp, unativeint vc, unativeint vs) |> ignore)))
-            (fun () ->
-                let buf = Array.zeroCreate<byte> vtxBound
-                pinArray mesh.Vertices (fun vp ->
-                    pinArray buf (fun bp ->
-                        MeshOptPort.VertexCodec.meshopt_encodeVertexBuffer
-                            (NPtr.ofNI bp) vtxBound vp vc vs |> ignore)))
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
 
-        // 8. decodeVertexBuffer (encode first, then time decode only)
-        let vtxEncBuf = Array.zeroCreate<byte> vtxBound
-        let vtxEncSize =
-            pinArray mesh.Vertices (fun vp ->
-                pinArray vtxEncBuf (fun bp ->
-                    int (Native.meshopt_encodeVertexBuffer(bp, unativeint vtxBound, vp, unativeint vc, unativeint vs))))
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
 
-        bench "decodeVertexBuffer"
-            (fun () ->
-                let dst = Array.zeroCreate<Vertex> vc
-                pinArray vtxEncBuf (fun bp ->
-                    pinArray dst (fun dp ->
-                        Native.meshopt_decodeVertexBuffer(dp, unativeint vc, unativeint vs, bp, unativeint vtxEncSize) |> ignore)))
-            (fun () ->
-                let dst = Array.zeroCreate<Vertex> vc
-                pinArray vtxEncBuf (fun bp ->
-                    pinArray dst (fun dp ->
-                        MeshOptPort.VertexCodec.meshopt_decodeVertexBuffer
-                            dp vc vs (NPtr.ofNI bp) vtxEncSize |> ignore)))
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.CacheOptIndices (fun src ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray dst (fun d ->
+                    Native.meshopt_optimizeOverdraw(d, src, unativeint this.S.IC, vp, unativeint this.S.VC, unativeint this.S.VS, 1.05f))))
 
-        // 9. buildMeshlets
-        let maxVerts = 64
-        let maxTris = 124
-        let maxMeshlets = MeshOptPort.Clusterizer.meshopt_buildMeshletsBound ic maxVerts maxTris
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.CacheOptIndices (fun src ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray dst (fun d ->
+                    MeshOptPort.OverdrawOptimizer.meshopt_optimizeOverdraw
+                        (NPtr.ofNI d) (NPtr.ofNI src) this.S.IC (NPtr.ofNI<float32> vp) this.S.VC this.S.VS 1.05f)))
 
-        bench "buildMeshlets"
-            (fun () ->
-                let ms = Array.zeroCreate<meshopt_Meshlet> maxMeshlets
-                let mv = Array.zeroCreate<uint32> (maxMeshlets * maxVerts)
-                let mt = Array.zeroCreate<byte> (maxMeshlets * maxTris * 3)
-                pinArray mesh.Indices (fun ip ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray ms (fun mp ->
-                            pinArray mv (fun mvp ->
-                                pinArray mt (fun mtp ->
-                                    Native.meshopt_buildMeshlets(mp, mvp, mtp, ip, unativeint ic, vp, unativeint vc, unativeint vs, unativeint maxVerts, unativeint maxTris, 0.0f) |> ignore))))))
-            (fun () ->
-                let ms = Array.zeroCreate<meshopt_Meshlet> maxMeshlets
-                let mv = Array.zeroCreate<uint32> (maxMeshlets * maxVerts)
-                let mt = Array.zeroCreate<byte> (maxMeshlets * maxTris * 3)
-                pinArray mesh.Indices (fun ip ->
-                    pinArray mesh.Vertices (fun vp ->
-                        pinArray ms (fun mp ->
-                            pinArray mv (fun mvp ->
-                                pinArray mt (fun mtp ->
-                                    MeshOptPort.Clusterizer.meshopt_buildMeshlets
-                                        (NPtr.ofNI mp) (NPtr.ofNI mvp) (NPtr.ofNI mtp)
-                                        (NPtr.ofNI ip) ic (NPtr.ofNI<float32> vp) vc vs maxVerts maxTris 0.0f |> ignore))))))
 
-        // 10. stripify
-        let stripBound = MeshOptPort.Stripifier.meshopt_stripifyBound ic
+[<MemoryDiagnoser>]
+type VertexFetchBenchmark() =
 
-        bench "stripify"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> stripBound
-                pinArray mesh.Indices (fun ip ->
-                    pinArray dst (fun dp ->
-                        Native.meshopt_stripify(dp, ip, unativeint ic, unativeint vc, 0xFFFFFFFFu) |> ignore)))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> stripBound
-                pinArray mesh.Indices (fun ip ->
-                    pinArray dst (fun dp ->
-                        MeshOptPort.Stripifier.meshopt_stripify
-                            (NPtr.ofNI dp) (NPtr.ofNI ip) ic vc 0xFFFFFFFFu |> ignore)))
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
 
-        // 11. spatialSortRemap
-        bench "spatialSortRemap"
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> vc
-                pinArray mesh.Vertices (fun vp ->
-                    pinArray dst (fun dp ->
-                        Native.meshopt_spatialSortRemap(dp, vp, unativeint vc, unativeint vs))))
-            (fun () ->
-                let dst = Array.zeroCreate<uint32> vc
-                pinArray mesh.Vertices (fun vp ->
-                    pinArray dst (fun dp ->
-                        MeshOptPort.SpatialOrder.meshopt_spatialSortRemap
-                            (NPtr.ofNI dp) (NPtr.ofNI<float32> vp) vc vs)))
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
 
-        printfn ""
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let idxCopy = Array.copy this.S.Mesh.Indices
+        let dstV = Array.zeroCreate<Vertex> this.S.VC
+        pinArray idxCopy (fun ip ->
+            pinArray dstV (fun dp ->
+                pinArray this.S.Mesh.Vertices (fun sp ->
+                    Native.meshopt_optimizeVertexFetch(dp, ip, unativeint this.S.IC, sp, unativeint this.S.VC, unativeint this.S.VS) |> ignore)))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let idxCopy = Array.copy this.S.Mesh.Indices
+        let dstV = Array.zeroCreate<Vertex> this.S.VC
+        pinArray idxCopy (fun ip ->
+            pinArray dstV (fun dp ->
+                pinArray this.S.Mesh.Vertices (fun sp ->
+                    MeshOptPort.VFetchOptimizer.meshopt_optimizeVertexFetch
+                        dp (NPtr.ofNI ip) this.S.IC sp this.S.VC this.S.VS |> ignore)))
+
+
+[<MemoryDiagnoser>]
+type SimplifyBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let targetCount = this.S.IC / 2
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        let err = Array.zeroCreate<float32> 1
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray dst (fun dp ->
+                    pinArray err (fun ep ->
+                        Native.meshopt_simplify(dp, ip, unativeint this.S.IC, vp, unativeint this.S.VC, unativeint this.S.VS, unativeint targetCount, 0.01f, 0u, ep) |> ignore))))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let targetCount = this.S.IC / 2
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        let err = Array.zeroCreate<float32> 1
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray dst (fun dp ->
+                    pinArray err (fun ep ->
+                        MeshOptPort.Simplifier.meshopt_simplify
+                            (NPtr.ofNI dp) (NPtr.ofNI ip) this.S.IC (NPtr.ofNI<float32> vp) this.S.VC this.S.VS targetCount 0.01f 0u (NPtr.ofNI ep) |> ignore))))
+
+
+[<MemoryDiagnoser>]
+type EncodeIndexBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let bound = MeshOptPort.IndexCodec.meshopt_encodeIndexBufferBound this.S.IC this.S.VC
+        let buf = Array.zeroCreate<byte> bound
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray buf (fun bp ->
+                Native.meshopt_encodeIndexBuffer(bp, unativeint bound, ip, unativeint this.S.IC) |> ignore))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let bound = MeshOptPort.IndexCodec.meshopt_encodeIndexBufferBound this.S.IC this.S.VC
+        let buf = Array.zeroCreate<byte> bound
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray buf (fun bp ->
+                MeshOptPort.IndexCodec.meshopt_encodeIndexBuffer
+                    (NPtr.ofNI bp) bound (NPtr.ofNI ip) this.S.IC |> ignore))
+
+
+[<MemoryDiagnoser>]
+type DecodeIndexBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.IdxEncBuf (fun bp ->
+            pinArray dst (fun dp ->
+                Native.meshopt_decodeIndexBuffer(dp, unativeint this.S.IC, unativeint 4, bp, unativeint this.S.IdxEncSize) |> ignore))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<uint32> this.S.IC
+        pinArray this.S.IdxEncBuf (fun bp ->
+            pinArray dst (fun dp ->
+                MeshOptPort.IndexCodec.meshopt_decodeIndexBuffer
+                    dp this.S.IC 4 (NPtr.ofNI bp) this.S.IdxEncSize |> ignore))
+
+
+[<MemoryDiagnoser>]
+type EncodeVertexBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let bound = MeshOptPort.VertexCodec.meshopt_encodeVertexBufferBound this.S.VC this.S.VS
+        let buf = Array.zeroCreate<byte> bound
+        pinArray this.S.Mesh.Vertices (fun vp ->
+            pinArray buf (fun bp ->
+                Native.meshopt_encodeVertexBuffer(bp, unativeint bound, vp, unativeint this.S.VC, unativeint this.S.VS) |> ignore))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let bound = MeshOptPort.VertexCodec.meshopt_encodeVertexBufferBound this.S.VC this.S.VS
+        let buf = Array.zeroCreate<byte> bound
+        pinArray this.S.Mesh.Vertices (fun vp ->
+            pinArray buf (fun bp ->
+                MeshOptPort.VertexCodec.meshopt_encodeVertexBuffer
+                    (NPtr.ofNI bp) bound vp this.S.VC this.S.VS |> ignore))
+
+
+[<MemoryDiagnoser>]
+type DecodeVertexBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<Vertex> this.S.VC
+        pinArray this.S.VtxEncBuf (fun bp ->
+            pinArray dst (fun dp ->
+                Native.meshopt_decodeVertexBuffer(dp, unativeint this.S.VC, unativeint this.S.VS, bp, unativeint this.S.VtxEncSize) |> ignore))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<Vertex> this.S.VC
+        pinArray this.S.VtxEncBuf (fun bp ->
+            pinArray dst (fun dp ->
+                MeshOptPort.VertexCodec.meshopt_decodeVertexBuffer
+                    dp this.S.VC this.S.VS (NPtr.ofNI bp) this.S.VtxEncSize |> ignore))
+
+
+[<MemoryDiagnoser>]
+type BuildMeshletsBenchmark() =
+
+    static let maxVerts = 64
+    static let maxTris = 124
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+    member val MaxMeshlets = 0 with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() =
+        this.S <- createBenchState this.GridSize
+        this.MaxMeshlets <- MeshOptPort.Clusterizer.meshopt_buildMeshletsBound this.S.IC maxVerts maxTris
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let ms = Array.zeroCreate<meshopt_Meshlet> this.MaxMeshlets
+        let mv = Array.zeroCreate<uint32> (this.MaxMeshlets * maxVerts)
+        let mt = Array.zeroCreate<byte> (this.MaxMeshlets * maxTris * 3)
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray ms (fun mp ->
+                    pinArray mv (fun mvp ->
+                        pinArray mt (fun mtp ->
+                            Native.meshopt_buildMeshlets(mp, mvp, mtp, ip, unativeint this.S.IC, vp, unativeint this.S.VC, unativeint this.S.VS, unativeint maxVerts, unativeint maxTris, 0.0f) |> ignore)))))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let ms = Array.zeroCreate<meshopt_Meshlet> this.MaxMeshlets
+        let mv = Array.zeroCreate<uint32> (this.MaxMeshlets * maxVerts)
+        let mt = Array.zeroCreate<byte> (this.MaxMeshlets * maxTris * 3)
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray this.S.Mesh.Vertices (fun vp ->
+                pinArray ms (fun mp ->
+                    pinArray mv (fun mvp ->
+                        pinArray mt (fun mtp ->
+                            MeshOptPort.Clusterizer.meshopt_buildMeshlets
+                                (NPtr.ofNI mp) (NPtr.ofNI mvp) (NPtr.ofNI mtp)
+                                (NPtr.ofNI ip) this.S.IC (NPtr.ofNI<float32> vp) this.S.VC this.S.VS maxVerts maxTris 0.0f |> ignore)))))
+
+
+[<MemoryDiagnoser>]
+type StripifyBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+    member val StripBound = 0 with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() =
+        this.S <- createBenchState this.GridSize
+        this.StripBound <- MeshOptPort.Stripifier.meshopt_stripifyBound this.S.IC
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<uint32> this.StripBound
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray dst (fun dp ->
+                Native.meshopt_stripify(dp, ip, unativeint this.S.IC, unativeint this.S.VC, 0xFFFFFFFFu) |> ignore))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<uint32> this.StripBound
+        pinArray this.S.Mesh.Indices (fun ip ->
+            pinArray dst (fun dp ->
+                MeshOptPort.Stripifier.meshopt_stripify
+                    (NPtr.ofNI dp) (NPtr.ofNI ip) this.S.IC this.S.VC 0xFFFFFFFFu |> ignore))
+
+
+[<MemoryDiagnoser>]
+type SpatialSortBenchmark() =
+
+    [<Params(32, 224, 1024)>]
+    member val GridSize = 0 with get, set
+    member val S = Unchecked.defaultof<BenchState> with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() = this.S <- createBenchState this.GridSize
+
+    [<Benchmark(Baseline = true)>]
+    member this.Cpp() =
+        let dst = Array.zeroCreate<uint32> this.S.VC
+        pinArray this.S.Mesh.Vertices (fun vp ->
+            pinArray dst (fun dp ->
+                Native.meshopt_spatialSortRemap(dp, vp, unativeint this.S.VC, unativeint this.S.VS)))
+
+    [<Benchmark>]
+    member this.FSharp() =
+        let dst = Array.zeroCreate<uint32> this.S.VC
+        pinArray this.S.Mesh.Vertices (fun vp ->
+            pinArray dst (fun dp ->
+                MeshOptPort.SpatialOrder.meshopt_spatialSortRemap
+                    (NPtr.ofNI dp) (NPtr.ofNI<float32> vp) this.S.VC this.S.VS))
+
+
+// ---- Hardware counter config ----
+
+type PerfConfig() =
+    inherit ManualConfig()
+    do
+        base.AddJob(Job.Default) |> ignore
+        base.AddDiagnoser(MemoryDiagnoser.Default) |> ignore
+        base.AddColumn(StatisticColumn.Median) |> ignore
+        base.AddHardwareCounters(
+            HardwareCounter.BranchMispredictions,
+            HardwareCounter.CacheMisses,
+            HardwareCounter.InstructionRetired) |> ignore

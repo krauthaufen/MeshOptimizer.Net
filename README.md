@@ -30,8 +30,11 @@ make -j$(nproc)
 # Run correctness tests
 LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests
 
-# Run performance benchmarks
+# Run performance benchmarks (BenchmarkDotNet)
 LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench
+
+# Run a single benchmark
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --filter *Simplify*
 ```
 
 ## Project Structure

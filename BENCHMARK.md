@@ -2,9 +2,9 @@
 
 ## Methodology
 
-Each function is benchmarked by calling both the C++ reference (via P/Invoke to `libmeshoptimizer.so`) and the F# port with identical inputs, then comparing wall-clock time.
+Uses [BenchmarkDotNet](https://benchmarkdotnet.org/) for statistically rigorous measurements with confidence intervals, outlier detection, and memory allocation tracking. Each function has a dedicated benchmark class with `Cpp` (baseline, via P/Invoke) and `FSharp` methods.
 
-**Mesh generation:** Flat grid meshes with interleaved position/normal/texcoord vertices (32 bytes each). Three sizes cover the range from trivial to production-scale:
+**Mesh generation:** Flat grid meshes with interleaved position/normal/texcoord vertices (32 bytes each). Three parameterized sizes (`GridSize` = 32, 224, 1024):
 
 | Size   | Grid      | Vertices    | Triangles   | Indices     |
 |--------|-----------|-------------|-------------|-------------|
@@ -12,7 +12,9 @@ Each function is benchmarked by calling both the C++ reference (via P/Invoke to 
 | Medium | 224x224   | 50,176      | 99,458      | 298,374     |
 | Large  | 1024x1024 | 1,048,576   | 2,093,058   | 6,279,174   |
 
-**Timing:** `Stopwatch`-based. Each function gets 1 warmup run, then N timed runs (Small: 50, Medium: 10, Large: 3). The median is reported. `GC.Collect` runs between benchmarks to reduce noise.
+**Timing:** BenchmarkDotNet auto-selects iteration count per operation speed, reports mean with 99.9% confidence interval, and detects outliers. `[<MemoryDiagnoser>]` tracks managed allocations.
+
+**Hardware counters:** Optional `--counters` flag enables `perf`-based counters (branch mispredictions, cache misses, instructions retired). Requires Linux `perf` and `kernel.perf_event_paranoid ≤ 1`.
 
 **Build:** `dotnet run -c Release` (.NET 8, RyuJIT). CPU: AMD Ryzen 9 7940HS capped at 3 GHz.
 
@@ -85,5 +87,15 @@ The codec functions show the largest gap because C++ meshoptimizer uses hand-tun
 ## Running
 
 ```bash
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project MeshOptPort.Tests -- --bench
+# Run all benchmarks
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench
+
+# Run a single function
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --filter *VertexCache*
+
+# With hardware performance counters (needs perf + paranoid ≤ 1)
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --counters
+
+# Short run (fewer iterations, faster)
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --job short
 ```
