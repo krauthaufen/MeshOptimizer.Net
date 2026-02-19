@@ -1,0 +1,12 @@
+type project
+id MeshOptimizer.Net.Raw
+authors Georg Haaser
+owners Georg Haaser
+projectUrl https://github.com/krauthaufen/MeshOptimizer.Net
+licenseExpression MIT
+licenseUrl https://licenses.nuget.org/MIT
+repositoryType git
+repositoryUrl https://github.com/krauthaufen/MeshOptimizer.Net
+description
+    F# port of meshoptimizer — a library for optimizing triangle meshes for GPU rendering. Includes vertex cache and fetch optimization, overdraw optimization, mesh simplification (QEM), index/vertex buffer encoding, meshlet building, spatial sorting, triangle stripification, and quantization. Line-by-line translation of the C/C++ source with SIMD support (SSE4.1/NEON with scalar fallback). No external dependencies.
+include-pdbs true

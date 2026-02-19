@@ -1,0 +1,107 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - RELEASE_NOTES.md
+      - .github/workflows/publish.yml
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+          - name: Windows x64
+            os: windows-latest
+          - name: MacOS arm64
+            os: macos-latest
+          - name: MacOS x64
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore Tools
+        run: dotnet tool restore
+      - name: Restore
+        run: dotnet paket restore
+      - name: Build
+        run: dotnet build -c Release MeshOptimizer.Net.sln
+      - name: Clone meshoptimizer
+        run: git clone https://github.com/zeux/meshoptimizer ${{ runner.temp }}/meshoptimizer
+      - name: Checkout reference commit
+        run: git -C ${{ runner.temp }}/meshoptimizer checkout d033a68
+      - name: Build C++ library (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S ${{ runner.temp }}/meshoptimizer -B ${{ runner.temp }}/meshoptimizer/build \
+            -DMESHOPT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-ffp-contract=off"
+          cmake --build ${{ runner.temp }}/meshoptimizer/build
+      - name: Build C++ library (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S ${{ runner.temp }}/meshoptimizer -B ${{ runner.temp }}/meshoptimizer/build -DMESHOPT_BUILD_SHARED_LIBS=ON
+          cmake --build ${{ runner.temp }}/meshoptimizer/build --config Release
+      - name: Test (Unix)
+        if: runner.os != 'Windows'
+        env:
+          LD_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
+          DYLD_FALLBACK_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
+        run: dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ runner.temp }}\meshoptimizer\build\Release;$env:PATH"
+          dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
+
+  pack:
+    name: Package
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore Tools
+        run: dotnet tool restore
+      - name: Restore
+        run: dotnet paket restore
+      - name: Build
+        shell: cmd
+        run: dotnet build -c Release MeshOptimizer.Net.sln
+      - name: Pack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet aardpack MeshOptimizer.Net.sln --notag
+      - name: Upload Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: bin\pack
+      - name: GitHub Packages
+        env:
+          NUGET_KEY: ${{ secrets.GITHUB_TOKEN }}
+        shell: cmd
+        run: dotnet nuget push "bin\pack\*.nupkg" -k %NUGET_KEY% -s "https://nuget.pkg.github.com/krauthaufen/index.json" --skip-duplicate
+      - name: NuGet
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_KEY }}
+        shell: cmd
+        run: dotnet nuget push "bin\pack\*.nupkg" -k %NUGET_KEY% -s "https://api.nuget.org/v3/index.json" --skip-duplicate
