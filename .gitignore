@@ -1,3 +1,4 @@
+/.paket
 *.user
 BenchmarkDotNet.Artifacts/
 .idea/

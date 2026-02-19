@@ -1,25 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>9;51;42</NoWarn>
   </PropertyGroup>
-
   <ItemGroup>
+    <None Include="paket.references" />
     <Compile Include="Native.fs" />
     <Compile Include="ObjLoader.fs" />
     <Compile Include="Benchmark.fs" />
     <Compile Include="Program.fs" />
+    <Content Include="paket.references" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.14.*" />
+    <ProjectReference Include="..\MeshOptimizer.Net.Raw\MeshOptimizer.Net.Raw.fsproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MeshOptimizer.Net\MeshOptimizer.Net.fsproj" />
-  </ItemGroup>
-
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

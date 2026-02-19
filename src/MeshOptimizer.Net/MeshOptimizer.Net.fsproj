@@ -1,34 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <CheckOverflow>false</CheckOverflow>
-    <NoWarn>9;51;42</NoWarn>
   </PropertyGroup>
-
   <ItemGroup>
-    <Compile Include="Core\Types.fs" />
-    <Compile Include="Core\NativeUtil.fs" />
-    <Compile Include="Core\Allocator.fs" />
-    <Compile Include="Core\Quantization.fs" />
-    <Compile Include="Core\VFetchOptimizer.fs" />
-    <Compile Include="Core\IndexAnalyzer.fs" />
-    <Compile Include="Core\Stripifier.fs" />
-    <Compile Include="Core\Rasterizer.fs" />
-    <Compile Include="Core\VCacheOptimizer.fs" />
-    <Compile Include="Core\SpatialOrder.fs" />
-    <Compile Include="Core\OverdrawOptimizer.fs" />
-    <Compile Include="Core\Partition.fs" />
-    <Compile Include="Core\IndexCodec.fs" />
-    <Compile Include="Core\IndexGenerator.fs" />
-    <Compile Include="Core\VertexCodec.fs" />
-    <Compile Include="Core\VertexFilter.fs" />
-    <Compile Include="Core\MeshletCodec.fs" />
-    <Compile Include="Core\Clusterizer.fs" />
-    <Compile Include="Core\Simplifier.fs" />
+    <None Include="paket.references" />
     <Compile Include="Mem.fs" />
     <Compile Include="TriangleMesh.fs" />
+    <Content Include="paket.references" />
   </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\MeshOptimizer.Net.Raw\MeshOptimizer.Net.Raw.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

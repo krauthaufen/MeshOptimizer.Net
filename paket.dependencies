@@ -1,0 +1,7 @@
+framework: net8.0
+storage: none
+source https://api.nuget.org/v3/index.json
+
+nuget Aardvark.Build               ~> 2.0.7
+nuget FSharp.Core >= 8.0.0 lowest_matching: true
+nuget BenchmarkDotNet ~> 0.14.0

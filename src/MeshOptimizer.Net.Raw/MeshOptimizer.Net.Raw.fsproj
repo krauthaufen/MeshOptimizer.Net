@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CheckOverflow>false</CheckOverflow>
+    <NoWarn>9;51;42</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Types.fs" />
+    <Compile Include="NativeUtil.fs" />
+    <Compile Include="Allocator.fs" />
+    <Compile Include="Quantization.fs" />
+    <Compile Include="VFetchOptimizer.fs" />
+    <Compile Include="IndexAnalyzer.fs" />
+    <Compile Include="Stripifier.fs" />
+    <Compile Include="Rasterizer.fs" />
+    <Compile Include="VCacheOptimizer.fs" />
+    <Compile Include="SpatialOrder.fs" />
+    <Compile Include="OverdrawOptimizer.fs" />
+    <Compile Include="Partition.fs" />
+    <Compile Include="IndexCodec.fs" />
+    <Compile Include="IndexGenerator.fs" />
+    <Compile Include="VertexCodec.fs" />
+    <Compile Include="VertexFilter.fs" />
+    <Compile Include="MeshletCodec.fs" />
+    <Compile Include="Clusterizer.fs" />
+    <Compile Include="Simplifier.fs" />
+    <Content Include="paket.references" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
