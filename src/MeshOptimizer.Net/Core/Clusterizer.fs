@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.Clusterizer
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.Clusterizer
 
 // This work is based on:
 // Graham Wihlidal. Optimizing the Graphics Pipeline with Compute. 2016
@@ -13,8 +13,8 @@ module MeshOptPort.Clusterizer
 open System
 open System.Runtime.CompilerServices
 open FSharp.NativeInterop
-open MeshOptPort
-open MeshOptPort.Allocator
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Allocator
 
 // This must be <= 256 since meshlet indices are stored as bytes
 [<Literal>]

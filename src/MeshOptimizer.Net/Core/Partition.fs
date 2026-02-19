@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.Partition
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.Partition
 
 // This work is based on:
 // Takio Kurita. An efficient agglomerative clustering algorithm using a heap. 1991
@@ -8,7 +8,7 @@ module MeshOptPort.Partition
 
 open System
 open FSharp.NativeInterop
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 // To avoid excessive recursion for malformed inputs, we switch to bisection after some depth
 [<Literal>]

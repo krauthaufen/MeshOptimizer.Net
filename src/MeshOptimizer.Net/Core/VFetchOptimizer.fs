@@ -1,8 +1,8 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.VFetchOptimizer
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.VFetchOptimizer
 
 open System
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 let meshopt_optimizeVertexFetchRemap (destination: nativeptr<uint32>) (indices: nativeptr<uint32>) (index_count: int) (vertex_count: int) : int =
     assert (index_count % 3 = 0)

@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.VertexFilter
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.VertexFilter
 
 #nowarn "9"
 
@@ -8,8 +8,8 @@ open System.Runtime.CompilerServices
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
 open System.Runtime.Intrinsics.Arm
-open MeshOptPort
-open MeshOptPort.Quantization
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Quantization
 
 // ---- scalar fallbacks ----
 

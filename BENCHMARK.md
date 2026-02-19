@@ -159,14 +159,14 @@ Compared to the old hand-rolled Stopwatch benchmarks, BenchmarkDotNet reveals ti
 
 ```bash
 # Run all benchmarks
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --filter "*.Benchmark*"
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench --filter "*.Benchmark*"
 
 # Run a single function
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --filter *VertexCache*
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench --filter *VertexCache*
 
 # With hardware performance counters (needs perf + paranoid ≤ 1)
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --counters
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench --counters
 
 # Short run (fewer iterations, faster)
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptPort.Tests -- --bench --job short
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench --job short
 ```

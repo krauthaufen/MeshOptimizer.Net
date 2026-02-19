@@ -1,8 +1,8 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.Stripifier
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.Stripifier
 
 open System
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 // buffer is an array of triangles stored flat: buffer[i*3+j]
 let private findStripFirst (buffer: uint32[]) (buffer_size: int) (valence: nativeptr<byte>) : int =

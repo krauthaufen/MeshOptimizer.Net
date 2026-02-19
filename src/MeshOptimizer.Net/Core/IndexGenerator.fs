@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.IndexGenerator
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.IndexGenerator
 
 // This work is based on:
 // Matthias Teschner, Bruno Heidelberger, Matthias Mueller, Danat Pomeranets, Markus Gross. Optimized Spatial Hashing for Collision Detection of Deformable Objects. 2003
@@ -7,7 +7,7 @@ module MeshOptPort.IndexGenerator
 // John Hable. Variable Rate Shading with Visibility Buffer Rendering. 2024
 
 open System
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 /// Delegate for custom vertex equality callback used by meshopt_generateVertexRemapCustom.
 /// Parameters: context (nativeint), lhs index (uint32), rhs index (uint32). Returns non-zero if equal.

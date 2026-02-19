@@ -1,4 +1,4 @@
-﻿namespace MeshOptPort
+﻿namespace MeshOptimizer.Net
 
 module Say =
     let hello name =

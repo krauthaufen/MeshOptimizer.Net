@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-namespace MeshOptPort
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+namespace MeshOptimizer.Net
 
 open System
 open System.Runtime.InteropServices

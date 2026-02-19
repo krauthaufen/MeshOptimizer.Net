@@ -1,14 +1,14 @@
 // Test harness: compares C++ meshoptimizer (via P/Invoke) against F# port
-// Run with: LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run --project MeshOptPort.Tests
-module MeshOptPort.Tests.Program
+// Run with: LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run --project MeshOptimizer.Net.Tests
+module MeshOptimizer.Net.Tests.Program
 
 open System
 open System.Reflection
 open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open BenchmarkDotNet.Running
-open MeshOptPort
-open MeshOptPort.Tests.ObjLoader
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Tests.ObjLoader
 
 #nowarn "9" // native interop
 
@@ -76,7 +76,7 @@ let testQuantization () =
     let mutable allPass = true
     for v in testValues do
         let cppH = Native.meshopt_quantizeHalf(v)
-        let fsH = MeshOptPort.Quantization.meshopt_quantizeHalf v
+        let fsH = MeshOptimizer.Net.Quantization.meshopt_quantizeHalf v
         if cppH <> fsH then
             fail "quantizeHalf" (sprintf "v=%.6g: C++=%d F#=%d" v cppH fsH)
             allPass <- false
@@ -85,7 +85,7 @@ let testQuantization () =
     let mutable allPass2 = true
     for h in [| 0us; 0x3C00us; 0xBC00us; 0x3800us; 0x7BFFus; 0x0400us; 0x7C00us; 0x7E00us |] do
         let cppF = Native.meshopt_dequantizeHalf(h)
-        let fsF = MeshOptPort.Quantization.meshopt_dequantizeHalf h
+        let fsF = MeshOptimizer.Net.Quantization.meshopt_dequantizeHalf h
         let cppBits = Unsafe.BitCast<float32, uint32>(cppF)
         let fsBits = Unsafe.BitCast<float32, uint32>(fsF)
         if cppBits <> fsBits then
@@ -109,7 +109,7 @@ let testVertexRemap (mesh: ObjMesh) (verticesPtr: nativeint) (indicesPtr: native
 
     let fsUnique =
         pinArray fsRemap (fun remapPtr ->
-            MeshOptPort.IndexGenerator.meshopt_generateVertexRemap
+            MeshOptimizer.Net.IndexGenerator.meshopt_generateVertexRemap
                 (NPtr.ofNI remapPtr) (NPtr.ofNI indicesPtr) ic (verticesPtr) vc vs)
 
     if cppUnique <> fsUnique then
@@ -132,7 +132,7 @@ let testOptimizeVertexCache (indices: uint32[]) (vertexCount: int) =
         pinArray cppDst (fun cppPtr ->
             Native.meshopt_optimizeVertexCache(cppPtr, srcPtr, unativeint ic, unativeint vertexCount))
         pinArray fsDst (fun fsPtr ->
-            MeshOptPort.VCacheOptimizer.meshopt_optimizeVertexCache
+            MeshOptimizer.Net.VCacheOptimizer.meshopt_optimizeVertexCache
                 (NPtr.ofNI fsPtr) (NPtr.ofNI srcPtr) ic vertexCount))
 
     compareArraysExact "optimizeVertexCache" cppDst fsDst
@@ -152,7 +152,7 @@ let testOptimizeOverdraw (cacheOptIndices: uint32[]) (mesh: ObjMesh) =
             pinArray cppDst (fun cppPtr ->
                 Native.meshopt_optimizeOverdraw(cppPtr, srcPtr, unativeint ic, vPtr, unativeint vc, unativeint stride, 1.05f))
             pinArray fsDst (fun fsPtr ->
-                MeshOptPort.OverdrawOptimizer.meshopt_optimizeOverdraw
+                MeshOptimizer.Net.OverdrawOptimizer.meshopt_optimizeOverdraw
                     (NPtr.ofNI fsPtr) (NPtr.ofNI srcPtr) ic (NPtr.ofNI<float32> vPtr) vc stride 1.05f)))
 
     compareArraysExact "optimizeOverdraw" cppDst fsDst
@@ -181,7 +181,7 @@ let testOptimizeVertexFetch (indices: uint32[]) (mesh: ObjMesh) =
         pinArray fsIndices (fun idxPtr ->
             pinArray fsVerts (fun dstPtr ->
                 pinArray (mesh.Vertices) (fun srcPtr ->
-                    MeshOptPort.VFetchOptimizer.meshopt_optimizeVertexFetch
+                    MeshOptimizer.Net.VFetchOptimizer.meshopt_optimizeVertexFetch
                         dstPtr (NPtr.ofNI idxPtr) ic srcPtr vc vs)))
 
     if cppUnique <> fsUnique then
@@ -203,7 +203,7 @@ let testAnalysis (indices: uint32[]) (mesh: ObjMesh) =
         // Vertex cache stats
         let cppStats = Native.meshopt_analyzeVertexCache(idxPtr, unativeint ic, unativeint vc, 16u, 0u, 0u)
         let fsStats =
-            MeshOptPort.IndexAnalyzer.meshopt_analyzeVertexCache
+            MeshOptimizer.Net.IndexAnalyzer.meshopt_analyzeVertexCache
                 (NPtr.ofNI idxPtr) ic vc 16u 0u 0u
         compareFloat "analyzeVertexCache ACMR" cppStats.acmr fsStats.acmr 1e-6f
         compareFloat "analyzeVertexCache ATVR" cppStats.atvr fsStats.atvr 1e-6f
@@ -211,7 +211,7 @@ let testAnalysis (indices: uint32[]) (mesh: ObjMesh) =
         // Vertex fetch stats
         let cppFetch = Native.meshopt_analyzeVertexFetch(idxPtr, unativeint ic, unativeint vc, unativeint vs)
         let fsFetch =
-            MeshOptPort.IndexAnalyzer.meshopt_analyzeVertexFetch
+            MeshOptimizer.Net.IndexAnalyzer.meshopt_analyzeVertexFetch
                 (NPtr.ofNI idxPtr) ic vc vs
         compareFloat "analyzeVertexFetch overfetch" cppFetch.overfetch fsFetch.overfetch 1e-6f
 
@@ -219,7 +219,7 @@ let testAnalysis (indices: uint32[]) (mesh: ObjMesh) =
         pinArray (mesh.Vertices) (fun vPtr ->
             let cppOd = Native.meshopt_analyzeOverdraw(idxPtr, unativeint ic, vPtr, unativeint vc, unativeint vertexSize)
             let fsOd =
-                MeshOptPort.Rasterizer.meshopt_analyzeOverdraw
+                MeshOptimizer.Net.Rasterizer.meshopt_analyzeOverdraw
                     (NPtr.ofNI idxPtr) ic (NPtr.ofNI<float32> vPtr) vc vertexSize
             compareFloat "analyzeOverdraw overdraw" cppOd.overdraw fsOd.overdraw 1e-6f))
 
@@ -230,10 +230,10 @@ let testIndexCodec (indices: uint32[]) (vertexCount: int) =
 
     // Ensure both use version 1
     Native.meshopt_encodeIndexVersion(1)
-    MeshOptPort.IndexCodec.meshopt_encodeIndexVersion(1)
+    MeshOptimizer.Net.IndexCodec.meshopt_encodeIndexVersion(1)
 
     let boundSize = int (Native.meshopt_encodeIndexBufferBound(unativeint ic, unativeint vertexCount))
-    let fsBoundSize = MeshOptPort.IndexCodec.meshopt_encodeIndexBufferBound ic vertexCount
+    let fsBoundSize = MeshOptimizer.Net.IndexCodec.meshopt_encodeIndexBufferBound ic vertexCount
 
     if boundSize <> fsBoundSize then
         fail "encodeIndexBufferBound" (sprintf "C++=%d F#=%d" boundSize fsBoundSize)
@@ -251,7 +251,7 @@ let testIndexCodec (indices: uint32[]) (vertexCount: int) =
     let fsEncSize =
         pinArray indices (fun idxPtr ->
             pinArray fsBuf (fun bufPtr ->
-                MeshOptPort.IndexCodec.meshopt_encodeIndexBuffer
+                MeshOptimizer.Net.IndexCodec.meshopt_encodeIndexBuffer
                     (NPtr.ofNI bufPtr) boundSize (NPtr.ofNI idxPtr) ic))
 
     if cppEncSize <> fsEncSize then
@@ -275,7 +275,7 @@ let testIndexCodec (indices: uint32[]) (vertexCount: int) =
     let fsDecoded = Array.zeroCreate<uint32> ic
     pinArray cppBuf (fun bufPtr ->
         pinArray fsDecoded (fun dstPtr ->
-            let rc = MeshOptPort.IndexCodec.meshopt_decodeIndexBuffer
+            let rc = MeshOptimizer.Net.IndexCodec.meshopt_decodeIndexBuffer
                         dstPtr ic 4 (NPtr.ofNI bufPtr) cppEncSize
             if rc <> 0 then fail "decodeIndexBuffer(F#)" (sprintf "error code %d" rc)))
 
@@ -290,10 +290,10 @@ let testVertexCodec (mesh: ObjMesh) =
 
     // Ensure both use version 0 for deterministic comparison
     Native.meshopt_encodeVertexVersion(0)
-    MeshOptPort.VertexCodec.meshopt_encodeVertexVersion(0)
+    MeshOptimizer.Net.VertexCodec.meshopt_encodeVertexVersion(0)
 
     let boundSize = int (Native.meshopt_encodeVertexBufferBound(unativeint vc, unativeint vs))
-    let fsBoundSize = MeshOptPort.VertexCodec.meshopt_encodeVertexBufferBound vc vs
+    let fsBoundSize = MeshOptimizer.Net.VertexCodec.meshopt_encodeVertexBufferBound vc vs
 
     if boundSize <> fsBoundSize then
         fail "encodeVertexBufferBound" (sprintf "C++=%d F#=%d" boundSize fsBoundSize)
@@ -311,7 +311,7 @@ let testVertexCodec (mesh: ObjMesh) =
     let fsEncSize =
         pinArray (mesh.Vertices) (fun vPtr ->
             pinArray fsBuf (fun bufPtr ->
-                MeshOptPort.VertexCodec.meshopt_encodeVertexBuffer
+                MeshOptimizer.Net.VertexCodec.meshopt_encodeVertexBuffer
                     (NPtr.ofNI bufPtr) boundSize vPtr vc vs))
 
     if cppEncSize <> fsEncSize then
@@ -327,7 +327,7 @@ let testVertexCodec (mesh: ObjMesh) =
     let fsDecoded = Array.zeroCreate<Vertex> vc
     pinArray cppBuf (fun bufPtr ->
         pinArray fsDecoded (fun dstPtr ->
-            let rc = MeshOptPort.VertexCodec.meshopt_decodeVertexBuffer
+            let rc = MeshOptimizer.Net.VertexCodec.meshopt_decodeVertexBuffer
                         dstPtr vc vs (NPtr.ofNI bufPtr) cppEncSize
             if rc <> 0 then fail "decodeVertexBuffer(C++→F#)" (sprintf "error code %d" rc)))
     compareArraysExact "decodeVertexBuffer C++→F#" mesh.Vertices fsDecoded
@@ -365,7 +365,7 @@ let testSimplify (indices: uint32[]) (mesh: ObjMesh) =
             pinArray (mesh.Vertices) (fun vPtr ->
                 pinArray fsDst (fun dstPtr ->
                     pinArray fsErr (fun errPtr ->
-                        MeshOptPort.Simplifier.meshopt_simplify
+                        MeshOptimizer.Net.Simplifier.meshopt_simplify
                             (NPtr.ofNI dstPtr) (NPtr.ofNI idxPtr) ic (NPtr.ofNI<float32> vPtr) vc stride targetCount 0.01f 0u (NPtr.ofNI errPtr)))))
 
     if cppResult <> fsResult then
@@ -385,7 +385,7 @@ let testSimplify (indices: uint32[]) (mesh: ObjMesh) =
     // simplifyScale
     pinArray (mesh.Vertices) (fun vPtr ->
         let cppScale = Native.meshopt_simplifyScale(vPtr, unativeint vc, unativeint stride)
-        let fsScale = MeshOptPort.Simplifier.meshopt_simplifyScale (NPtr.ofNI<float32> vPtr) vc stride
+        let fsScale = MeshOptimizer.Net.Simplifier.meshopt_simplifyScale (NPtr.ofNI<float32> vPtr) vc stride
         compareFloat "simplifyScale" cppScale fsScale 1e-6f)
 
     // simplifySloppy
@@ -406,7 +406,7 @@ let testSimplify (indices: uint32[]) (mesh: ObjMesh) =
             pinArray (mesh.Vertices) (fun vPtr ->
                 pinArray fsDst2 (fun dstPtr ->
                     pinArray fsErr2 (fun errPtr ->
-                        MeshOptPort.Simplifier.meshopt_simplifySloppy
+                        MeshOptimizer.Net.Simplifier.meshopt_simplifySloppy
                             (NPtr.ofNI dstPtr) (NPtr.ofNI idxPtr) ic (NPtr.ofNI<float32> vPtr) vc stride (NPtr.ofNI<byte> (nativeint 0)) targetCount 0.01f (NPtr.ofNI errPtr)))))
 
     if cppResult2 <> fsResult2 then
@@ -426,7 +426,7 @@ let testStripify (indices: uint32[]) (vertexCount: int) =
 
     let ic = indices.Length
     let boundSize = int (Native.meshopt_stripifyBound(unativeint ic))
-    let fsBoundSize = MeshOptPort.Stripifier.meshopt_stripifyBound ic
+    let fsBoundSize = MeshOptimizer.Net.Stripifier.meshopt_stripifyBound ic
 
     if boundSize <> fsBoundSize then
         fail "stripifyBound" (sprintf "C++=%d F#=%d" boundSize fsBoundSize)
@@ -444,7 +444,7 @@ let testStripify (indices: uint32[]) (vertexCount: int) =
     let fsStripCount =
         pinArray indices (fun idxPtr ->
             pinArray fsStrip (fun dstPtr ->
-                MeshOptPort.Stripifier.meshopt_stripify
+                MeshOptimizer.Net.Stripifier.meshopt_stripify
                     (NPtr.ofNI dstPtr) (NPtr.ofNI idxPtr) ic vertexCount 0xFFFFFFFFu))
 
     if cppStripCount <> fsStripCount then
@@ -460,7 +460,7 @@ let testStripify (indices: uint32[]) (vertexCount: int) =
     // Unstripify the strip back
     if cppStripCount > 0 then
         let unstripBound = int (Native.meshopt_unstripifyBound(unativeint cppStripCount))
-        let fsUnstripBound = MeshOptPort.Stripifier.meshopt_unstripifyBound cppStripCount
+        let fsUnstripBound = MeshOptimizer.Net.Stripifier.meshopt_unstripifyBound cppStripCount
         if unstripBound <> fsUnstripBound then
             fail "unstripifyBound" (sprintf "C++=%d F#=%d" unstripBound fsUnstripBound)
         else
@@ -478,7 +478,7 @@ let testStripify (indices: uint32[]) (vertexCount: int) =
         let fsUnstripCount =
             pinArray cppSlice (fun srcPtr ->
                 pinArray fsUnstrip (fun dstPtr ->
-                    MeshOptPort.Stripifier.meshopt_unstripify
+                    MeshOptimizer.Net.Stripifier.meshopt_unstripify
                         (NPtr.ofNI dstPtr) (NPtr.ofNI srcPtr) cppStripCount 0xFFFFFFFFu))
 
         if cppUnstripCount <> fsUnstripCount then
@@ -504,7 +504,7 @@ let testSpatialSort (mesh: ObjMesh) =
         pinArray cppRemap (fun cppPtr ->
             Native.meshopt_spatialSortRemap(cppPtr, vPtr, unativeint vc, unativeint stride))
         pinArray fsRemap (fun fsPtr ->
-            MeshOptPort.SpatialOrder.meshopt_spatialSortRemap
+            MeshOptimizer.Net.SpatialOrder.meshopt_spatialSortRemap
                 (NPtr.ofNI fsPtr) (NPtr.ofNI<float32> vPtr) vc stride))
 
     compareArraysExact "spatialSortRemap" cppRemap fsRemap
@@ -519,7 +519,7 @@ let testMeshlets (indices: uint32[]) (mesh: ObjMesh) =
     let maxTris = 124
 
     let maxMeshlets = int (Native.meshopt_buildMeshletsBound(unativeint ic, unativeint maxVerts, unativeint maxTris))
-    let fsBoundMeshlets = MeshOptPort.Clusterizer.meshopt_buildMeshletsBound ic maxVerts maxTris
+    let fsBoundMeshlets = MeshOptimizer.Net.Clusterizer.meshopt_buildMeshletsBound ic maxVerts maxTris
 
     if maxMeshlets <> fsBoundMeshlets then
         fail "buildMeshletsBound" (sprintf "C++=%d F#=%d" maxMeshlets fsBoundMeshlets)
@@ -547,7 +547,7 @@ let testMeshlets (indices: uint32[]) (mesh: ObjMesh) =
                 pinArray fsMeshlets (fun mPtr ->
                     pinArray fsMV (fun mvPtr ->
                         pinArray fsMT (fun mtPtr ->
-                            MeshOptPort.Clusterizer.meshopt_buildMeshlets
+                            MeshOptimizer.Net.Clusterizer.meshopt_buildMeshlets
                                 (NPtr.ofNI mPtr) (NPtr.ofNI mvPtr) (NPtr.ofNI mtPtr)
                                 (NPtr.ofNI idxPtr) ic (NPtr.ofNI<float32> vPtr) vc stride maxVerts maxTris 0.0f)))))
 
@@ -578,7 +578,7 @@ let testMeshlets (indices: uint32[]) (mesh: ObjMesh) =
             pinArray mtSlice (fun mtPtr ->
                 pinArray (mesh.Vertices) (fun vPtr ->
                     let cppBounds = Native.meshopt_computeMeshletBounds(mvPtr, mtPtr, unativeint (int m.triangle_count), vPtr, unativeint vc, unativeint stride)
-                    let fsBounds = MeshOptPort.Clusterizer.meshopt_computeMeshletBounds (NPtr.ofNI mvPtr) (NPtr.ofNI mtPtr) (int m.triangle_count) (NPtr.ofNI<float32> vPtr) vc stride
+                    let fsBounds = MeshOptimizer.Net.Clusterizer.meshopt_computeMeshletBounds (NPtr.ofNI mvPtr) (NPtr.ofNI mtPtr) (int m.triangle_count) (NPtr.ofNI<float32> vPtr) vc stride
                     compareFloat "meshletBounds center[0]" cppBounds.center_0 fsBounds.center_0 1e-4f
                     compareFloat "meshletBounds center[1]" cppBounds.center_1 fsBounds.center_1 1e-4f
                     compareFloat "meshletBounds center[2]" cppBounds.center_2 fsBounds.center_2 1e-4f
@@ -591,7 +591,7 @@ let testIndexSequenceCodec (indices: uint32[]) (vertexCount: int) =
     let ic = indices.Length
 
     let boundSize = int (Native.meshopt_encodeIndexSequenceBound(unativeint ic, unativeint vertexCount))
-    let fsBoundSize = MeshOptPort.IndexCodec.meshopt_encodeIndexSequenceBound ic vertexCount
+    let fsBoundSize = MeshOptimizer.Net.IndexCodec.meshopt_encodeIndexSequenceBound ic vertexCount
 
     if boundSize <> fsBoundSize then
         fail "encodeIndexSequenceBound" (sprintf "C++=%d F#=%d" boundSize fsBoundSize)
@@ -609,7 +609,7 @@ let testIndexSequenceCodec (indices: uint32[]) (vertexCount: int) =
     let fsEncSize =
         pinArray indices (fun idxPtr ->
             pinArray fsBuf (fun bufPtr ->
-                MeshOptPort.IndexCodec.meshopt_encodeIndexSequence
+                MeshOptimizer.Net.IndexCodec.meshopt_encodeIndexSequence
                     (NPtr.ofNI bufPtr) boundSize (NPtr.ofNI idxPtr) ic))
 
     if cppEncSize <> fsEncSize then
@@ -625,7 +625,7 @@ let testIndexSequenceCodec (indices: uint32[]) (vertexCount: int) =
     let fsDecoded = Array.zeroCreate<uint32> ic
     pinArray cppBuf (fun bufPtr ->
         pinArray fsDecoded (fun dstPtr ->
-            let rc = MeshOptPort.IndexCodec.meshopt_decodeIndexSequence dstPtr ic 4 (NPtr.ofNI bufPtr) cppEncSize
+            let rc = MeshOptimizer.Net.IndexCodec.meshopt_decodeIndexSequence dstPtr ic 4 (NPtr.ofNI bufPtr) cppEncSize
             if rc <> 0 then fail "decodeIndexSequence(C++→F#)" (sprintf "error code %d" rc)))
     compareArraysExact "decodeIndexSequence C++→F#" indices fsDecoded
 

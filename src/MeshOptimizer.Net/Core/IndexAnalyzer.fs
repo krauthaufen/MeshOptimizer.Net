@@ -1,8 +1,8 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.IndexAnalyzer
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.IndexAnalyzer
 
-open MeshOptPort
-open MeshOptPort.Allocator
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Allocator
 
 let meshopt_analyzeVertexCache (indices: nativeptr<uint32>) (index_count: int) (vertex_count: int) (cache_size: uint32) (warp_size: uint32) (primgroup_size: uint32) : meshopt_VertexCacheStatistics =
     assert (index_count % 3 = 0)

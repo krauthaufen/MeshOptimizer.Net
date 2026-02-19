@@ -1,10 +1,10 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
 // This work is based on:
 // Tom Forsyth. Linear-Speed Vertex Cache Optimisation. 2006
 // Pedro Sander, Diego Nehab and Joshua Barczak. Fast Triangle Reordering for Vertex Locality and Reduced Overdraw. 2007
-module MeshOptPort.VCacheOptimizer
+module MeshOptimizer.Net.VCacheOptimizer
 
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 [<Literal>]
 let private kCacheSizeMax = 16

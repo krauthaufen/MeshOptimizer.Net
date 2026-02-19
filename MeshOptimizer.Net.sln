@@ -1,13 +1,13 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A73372C5-748F-438E-96E6-3AFC05073E7A}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MeshOptPort", "src\MeshOptPort\MeshOptPort.fsproj", "{E291F049-B07E-4A96-BCD9-1410D460408C}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MeshOptimizer.Net", "src\MeshOptimizer.Net\MeshOptimizer.Net.fsproj", "{E291F049-B07E-4A96-BCD9-1410D460408C}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MeshOptPort.Tests", "src\MeshOptPort.Tests\MeshOptPort.Tests.fsproj", "{E280EACA-04EF-4997-8EB3-01A44A02BD20}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MeshOptimizer.Net.Tests", "src\MeshOptimizer.Net.Tests\MeshOptimizer.Net.Tests.fsproj", "{E280EACA-04EF-4997-8EB3-01A44A02BD20}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,11 +1,11 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.SpatialOrder
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.SpatialOrder
 
 // This work is based on:
 // Fabian Giesen. Decoding Morton codes. 2009
 
 open System
-open MeshOptPort.Allocator
+open MeshOptimizer.Net.Allocator
 
 // "Insert" two 0 bits after each of the 20 low bits of x
 let private part1By2 (x: uint64) : uint64 =

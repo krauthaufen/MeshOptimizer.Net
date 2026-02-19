@@ -1,9 +1,9 @@
 // P/Invoke bindings for C++ libmeshoptimizer.so
 // Used to compare C++ reference output against F# port
-module MeshOptPort.Tests.Native
+module MeshOptimizer.Net.Tests.Native
 
 open System.Runtime.InteropServices
-open MeshOptPort
+open MeshOptimizer.Net
 
 // Note: C size_t = unativeint on .NET; C unsigned int = uint32; C void* = nativeint; C float* = nativeint
 

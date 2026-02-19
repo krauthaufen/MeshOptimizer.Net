@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.MeshletCodec
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.MeshletCodec
 
 #nowarn "9"
 
@@ -8,8 +8,8 @@ open System.Runtime.InteropServices
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
 open System.Runtime.Intrinsics.Arm
-open MeshOptPort
-open MeshOptPort.Allocator
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Allocator
 
 // EdgeFifo8 is uint32[8][2] stored as flat uint32[16] with indexing [i*2+0] and [i*2+1]
 let private rotateTriangle (a: uint32) (b: uint32) (c: uint32) : int =

@@ -1,6 +1,6 @@
 // Utility helpers for native pointer operations used throughout the port
 [<AutoOpen>]
-module MeshOptPort.NativeUtil
+module MeshOptimizer.Net.NativeUtil
 
 open System.Runtime.InteropServices
 

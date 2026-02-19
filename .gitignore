@@ -1,3 +1,5 @@
+BenchmarkDotNet.Artifacts/
+.idea/
 bin/
 obj/
 *.bak

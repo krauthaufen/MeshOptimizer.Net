@@ -1,11 +1,11 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
 // This work is based on:
 // Pedro Sander, Diego Nehab and Joshua Barczak. Fast Triangle Reordering for Vertex Locality and Reduced Overdraw. 2007
-module MeshOptPort.OverdrawOptimizer
+module MeshOptimizer.Net.OverdrawOptimizer
 
 open System
-open MeshOptPort.Allocator
-open MeshOptPort.Quantization
+open MeshOptimizer.Net.Allocator
+open MeshOptimizer.Net.Quantization
 
 let private calculateSortData (sort_data: nativeptr<float32>) (indices: nativeptr<uint32>) (index_count: int) (vertex_positions: nativeptr<float32>) (vertex_count: int) (vertex_positions_stride: int) (clusters: nativeptr<uint32>) (cluster_count: int) =
     let vertex_stride_float = vertex_positions_stride / sizeof<float32>

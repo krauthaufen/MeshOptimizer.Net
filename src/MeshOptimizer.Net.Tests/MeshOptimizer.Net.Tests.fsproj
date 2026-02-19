@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MeshOptPort\MeshOptPort.fsproj" />
+    <ProjectReference Include="..\MeshOptimizer.Net\MeshOptimizer.Net.fsproj" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,8 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
 // This work is based on:
 // Fabian Giesen. Simple lossless index buffer compression & follow-up. 2013
 // Conor Stokes. Vertex Cache Optimised Index Buffer Compression. 2014
-module MeshOptPort.IndexCodec
+module MeshOptimizer.Net.IndexCodec
 
 let private kIndexHeader = 0xe0uy
 let private kSequenceHeader = 0xd0uy

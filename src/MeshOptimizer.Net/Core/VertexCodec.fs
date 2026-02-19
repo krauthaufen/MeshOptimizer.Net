@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.VertexCodec
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.VertexCodec
 
 open System
 open System.Runtime.CompilerServices
@@ -7,8 +7,8 @@ open System.Runtime.InteropServices
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
 open System.Runtime.Intrinsics.Arm
-open MeshOptPort
-open MeshOptPort.Allocator
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Allocator
 
 let private kVertexHeader = 0xa0uy
 

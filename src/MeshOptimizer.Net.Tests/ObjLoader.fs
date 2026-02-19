@@ -1,6 +1,6 @@
 // Minimal OBJ loader for test meshes
 // Parses v/vn/vt/f lines, triangulates quads, produces interleaved vertex + index buffers
-module MeshOptPort.Tests.ObjLoader
+module MeshOptimizer.Net.Tests.ObjLoader
 
 open System
 open System.IO

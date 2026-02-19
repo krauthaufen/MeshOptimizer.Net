@@ -1,5 +1,5 @@
-// This file is part of MeshOptPort; see meshoptimizer.h for version/license details
-module MeshOptPort.Simplifier
+// This file is part of MeshOptimizer.Net; see meshoptimizer.h for version/license details
+module MeshOptimizer.Net.Simplifier
 
 // This work is based on:
 // Michael Garland and Paul S. Heckbert. Surface simplification using quadric error metrics. 1997
@@ -15,8 +15,8 @@ module MeshOptPort.Simplifier
 open System
 open System.Runtime.CompilerServices
 open FSharp.NativeInterop
-open MeshOptPort
-open MeshOptPort.Allocator
+open MeshOptimizer.Net
+open MeshOptimizer.Net.Allocator
 
 // ============================================================================
 // Types
@@ -1895,15 +1895,16 @@ let meshopt_simplifyEdge (destination: nativeptr<uint32>) (indices: nativeptr<ui
     let error_scale = if options &&& uint32 meshopt_SimplifyOptions.ErrorAbsolute <> 0u then vertex_scale else 1.0f
     let error_limit = (target_error * target_error) / (error_scale * error_scale)
 
-    while result_count > target_index_count do
+    let mutable simplify_break = false
+
+    while result_count > target_index_count && not simplify_break do
         updateEdgeAdjacency &adjacency result result_count vertex_count remap
 
         let edge_collapse_count = pickEdgeCollapses edge_collapses collapse_capacity result result_count remap vertex_kind loop loopback
         assert (edge_collapse_count <= collapse_capacity)
 
         if edge_collapse_count = 0 then
-            result_count <- 0 // will break via while condition — force exit
-            result_count <- result_count // dummy to avoid warning; actual break below
+            simplify_break <- true
         else
             rankEdgeCollapses edge_collapses edge_collapse_count vertex_positions vertex_attributes vertex_quadrics attribute_quadrics attribute_gradients attribute_count remap wedge vertex_kind loop loopback
 
@@ -1918,8 +1919,7 @@ let meshopt_simplifyEdge (destination: nativeptr<uint32>) (indices: nativeptr<ui
             let collapses = performEdgeCollapses collapse_remap collapse_locked edge_collapses edge_collapse_count collapse_order remap wedge vertex_kind loop loopback vertex_positions &adjacency triangle_collapse_goal error_limit &result_error
 
             if collapses = 0 then
-                result_count <- 0 // force exit
-                result_count <- result_count
+                simplify_break <- true
             else
                 updateQuadrics collapse_remap vertex_count vertex_quadrics volume_gradients attribute_quadrics attribute_gradients attribute_count vertex_positions remap &vertex_error
                 vertex_error <- if attribute_count = 0 then result_error else vertex_error
@@ -1931,12 +1931,6 @@ let meshopt_simplifyEdge (destination: nativeptr<uint32>) (indices: nativeptr<ui
 
                 if options &&& uint32 meshopt_SimplifyOptions.Prune <> 0u && result_count > target_index_count && component_nexterror <= vertex_error then
                     result_count <- pruneComponents result result_count components component_errors component_count vertex_error &component_nexterror
-
-    // handle the "force exit" case properly — we encoded break as result_count <- 0 but should restore
-    // Actually the logic above has a problem. Let me fix it with a proper break flag.
-    // The above while loop with force-exit via result_count=0 is wrong.
-    // Let me restructure properly. But since the code is already written, let me instead
-    // just accept the minor issue - the while loop condition handles it.
 
     let mutable component_nextstale = true
 
