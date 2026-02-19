@@ -56,13 +56,13 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
           DYLD_FALLBACK_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
-        run: dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests
+        run: dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "${{ runner.temp }}\meshoptimizer\build\Release;$env:PATH"
-          dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests
+          dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
 
   pack:
     name: Package
