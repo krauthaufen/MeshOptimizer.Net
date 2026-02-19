@@ -8,9 +8,25 @@ Line-by-line translation of all 17 source files — 19 F# files, ~11,600 lines. 
 
 ## Status
 
-- All 49 correctness tests pass (byte-exact match against C++ `libmeshoptimizer.so`)
-- Performance within 1.1–2.5x of C++ across all functions (BenchmarkDotNet, Ryzen 7 7700X)
-- See [BENCHMARK.md](BENCHMARK.md) for detailed numbers
+All 49 correctness tests pass (byte-exact match against C++ `libmeshoptimizer.so`). See [BENCHMARK.md](BENCHMARK.md) for detailed numbers.
+
+### Performance vs C++ (GridSize=1024, ~2M triangles)
+
+| Function | C++ | F# | Ratio |
+|----------|----:|---:|------:|
+| optimizeOverdraw | 21,846 μs | 25,537 μs | 1.17 |
+| optimizeVertexCache | 164,546 μs | 215,398 μs | 1.31 |
+| spatialSortRemap | 24,267 μs | 33,309 μs | 1.37 |
+| buildMeshlets | 699,026 μs | 995,270 μs | 1.42 |
+| optimizeVertexFetch | 7,340 μs | 10,705 μs | 1.46 |
+| decodeIndexBuffer | 5,583 μs | 8,436 μs | 1.51 |
+| simplify | 250,538 μs | 498,074 μs | 1.99 |
+| stripify | 16,710 μs | 34,984 μs | 2.09 |
+| decodeVertexBuffer | 8,713 μs | 18,694 μs | 2.15 |
+| encodeIndexBuffer | 11,713 μs | 25,206 μs | 2.15 |
+| encodeVertexBuffer | 31,146 μs | 79,236 μs | 2.54 |
+
+BenchmarkDotNet, AMD Ryzen 7 7700X, .NET 8, RyuJIT AVX-512.
 
 ## Building
 
