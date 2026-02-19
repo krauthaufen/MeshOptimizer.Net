@@ -28,6 +28,7 @@
     <Compile Include="Core\Clusterizer.fs" />
     <Compile Include="Core\Simplifier.fs" />
     <Compile Include="Mem.fs" />
+    <Compile Include="TriangleMesh.fs" />
   </ItemGroup>
 
 </Project>
