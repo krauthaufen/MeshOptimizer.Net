@@ -35,7 +35,7 @@ jobs:
       - name: Restore
         run: dotnet paket restore
       - name: Build
-        run: dotnet build -c Release MeshOptimizer.Net.sln
+        run: dotnet build -c Release MeshOptimizerDotNet.sln
       - name: Clone meshoptimizer
         run: git clone https://github.com/zeux/meshoptimizer ${{ runner.temp }}/meshoptimizer
       - name: Checkout reference commit
@@ -57,13 +57,13 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
           DYLD_FALLBACK_LIBRARY_PATH: ${{ runner.temp }}/meshoptimizer/build
-        run: dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
+        run: dotnet run -c Release --no-build --project src/MeshOptimizerDotNet.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "${{ runner.temp }}\meshoptimizer\build\Release;$env:PATH"
-          dotnet run -c Release --no-build --project src/MeshOptimizer.Net.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
+          dotnet run -c Release --no-build --project src/MeshOptimizerDotNet.Tests -- ${{ runner.temp }}/meshoptimizer/demo/pirate.obj
 
   pack:
     name: Package
@@ -85,11 +85,11 @@ jobs:
         run: dotnet paket restore
       - name: Build
         shell: cmd
-        run: dotnet build -c Release MeshOptimizer.Net.sln
+        run: dotnet build -c Release MeshOptimizerDotNet.sln
       - name: Pack
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet aardpack MeshOptimizer.Net.sln --notag
+        run: dotnet aardpack MeshOptimizerDotNet.sln --notag
       - name: Upload Packages
         uses: actions/upload-artifact@v4
         with:

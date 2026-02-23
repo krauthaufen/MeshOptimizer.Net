@@ -1,4 +1,4 @@
-# MeshOptimizer.Net
+# MeshOptimizerDotNet
 
 F# port of [meshoptimizer](https://github.com/zeux/meshoptimizer), a C/C++ library for mesh processing (vertex cache optimization, simplification, encoding, meshlet building, and more).
 
@@ -46,13 +46,13 @@ cmake .. -DMESHOPT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_F
 make -j$(nproc)
 
 # Run correctness tests
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizerDotNet.Tests
 
 # Run performance benchmarks (BenchmarkDotNet)
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizerDotNet.Tests -- --bench
 
 # Run a single benchmark
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench --filter *Simplify*
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizerDotNet.Tests -- --bench --filter *Simplify*
 ```
 
 ### FMA contraction and simplifier tests
@@ -67,8 +67,8 @@ On x86-64, this is typically not an issue since clang doesn't fuse FP operations
 
 ```
 src/
-  MeshOptimizer.Net/            # F# library
-  MeshOptimizer.Net.Tests/      # Correctness tests + benchmarks
+  MeshOptimizerDotNet/            # F# library
+  MeshOptimizerDotNet.Tests/      # Correctness tests + benchmarks
 ```
 
 ## File Mapping

@@ -1,4 +1,4 @@
-# MeshOptimizer.Net
+# MeshOptimizerDotNet
 
 F# port of [meshoptimizer](https://github.com/zeux/meshoptimizer) (C/C++). Line-by-line translation, not an idiomatic rewrite.
 
@@ -11,10 +11,10 @@ dotnet build -c Release
 cmake .. -DMESHOPT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-ffp-contract=off"
 
 # Correctness (needs C++ shared lib)
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizerDotNet.Tests
 
 # Benchmark (BenchmarkDotNet)
-LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizer.Net.Tests -- --bench
+LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/MeshOptimizerDotNet.Tests -- --bench
 # Single function: --bench --filter *VertexCache*
 # Hardware counters: --bench --counters
 ```
@@ -23,8 +23,8 @@ LD_LIBRARY_PATH=/tmp/meshoptimizer/build dotnet run -c Release --project src/Mes
 
 Two projects in `src/`:
 
-- **MeshOptimizer.Net** — the library. 19 F# files, ~11,600 lines. No dependencies. Targets net8.0.
-- **MeshOptimizer.Net.Tests** — correctness tests (49 tests comparing F# vs C++ P/Invoke) and performance benchmarks.
+- **MeshOptimizerDotNet** — the library. 19 F# files, ~11,600 lines. No dependencies. Targets net8.0.
+- **MeshOptimizerDotNet.Tests** — correctness tests (49 tests comparing F# vs C++ P/Invoke) and performance benchmarks.
 
 Each C++ `.cpp` file maps to one F# `.fs` file (see README for full table). The compile order in the `.fsproj` matters — F# requires files to be ordered by dependency.
 
